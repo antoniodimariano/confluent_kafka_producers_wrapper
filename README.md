@@ -11,14 +11,27 @@ For example, we might have a static method that we only call when we need to pro
 
 ## How to use it:
 
-Environment variables to specify 
-If no SSL, then the bare minimum is 
+### How to set the Environment variables
 
-       brokers=mybroker:9090 mandatory
+#### Plain-text Brokers
+
+the bare minimum is 
+
+```
+brokers=mybroker:9090 mandatory
+```
+
+#### Schema Registry
 
 If you brokers use a schema registry, then you have to specify this environment variable,
 
-	1.schema_registry= myschemaregistry:8081 required if the topic has schemas.
+```
+schema_registry= https://myschemaregistry:8081`
+```
+
+#### SSL identification
+
+More information https://docs.confluent.io/3.0.0/kafka/ssl.html
 
 If you broker uses SSL, like Aiven, you need to download these certificates files and copy them to a folder: 
 
@@ -26,15 +39,40 @@ If you broker uses SSL, like Aiven, you need to download these certificates file
 * Access Certificate
 * CA Certificate
 
-Then, specify these environ variables,
-
-* **security_protocol** = SSL
-* **ssl\_ca_location** =  the relative path to the CA certificate file
-* **ssl\_certificate_location** = the relative path to the Access Certificate file
-* **ssl\_key_location** =  the relative path to the Access Key file
+Then, specify these environ variables
 
 
-Then, the only mandatory parameter to pass is the **topic**. Under the hood, the module will process the environ variables and configure the producer according. 
+
+| ENV variable name        |                       value                      |
+|--------------------------|:------------------------------------------------:|
+| security_protocol         | SSL                                              |
+| ssl\_ca_location          | the relative path to the CA certificate file     |
+| ssl\_certificate_location | the relative path to the Access Certificate file |
+| ssl\_key_location         | the relative path to the Access Key file         |
+
+
+
+#### SASL Identification
+
+More information https://docs.confluent.io/3.0.0/kafka/sasl.html
+If your broker requires SASL authentication, like Confluent Cloud,  these are the ENVironment variables to include
+
+
+| ENV variable name                                 |        value       |
+|---------------------------------------------------|:------------------:|
+| sasl_username                                     | YOUR USERNAME HERE |
+| sasl_password                                     | YOUR PASSWORD HERE |
+| schema\_registry\_basic\_auth\_user_info          | AUTH HERE          |
+| schema\_registry\_basic\_auth\_credentials_source | USER_INFO          |
+| sasl_mechanisms                                   | PLAIN              |
+| security_protocol                                 | SASL_SSL           |
+
+
+
+
+### Create producers
+
+The only mandatory parameter to pass is the **topic**. Under the hood, the module will process the environ variables and configure the producer according. 
 Other optional parameters are 
 
 * brokers_configuration = a dictionary like 
@@ -60,9 +98,11 @@ Other optional parameters are
 By default, the schemas are stored internally and loaded each time the same topic is passed as parameter. You can disable this behaviour by setting `store_and_load_schema=0`
 
 
+#### Produce a message to an Avro topic
+
 
 ```
-# Producer message to an Avro topic
+# Produce a  message to an Avro topic
 from confluent_kafka_producers_wrapper.producer import Producer
 producer = Producer(topic='mytopic')
 message_to_send = {    
@@ -88,6 +128,25 @@ def my_fire_and_forget_producer(topic,message_value_payload, message_key_payload
 ```
 
 Every time I call the `my_fire_and_forget_producer` method with the same topic schemas will be loaded from the internal cache instead of being retrived from the Schema Registry.
+
+#### Produce a  message to a Kafka topic:
+
+```
+# Produce a message to a Kafka topic
+from confluent_kafka_producers_wrapper.producer import Producer
+producer = Producer(topic='mytopic')
+message_to_send = {    
+                       'timestamp': '2021-01-27T09:17:02+00:00',
+                       'field1': 'test',
+                       'customer_email': 'peterparker@spiderman.com',
+                       'token': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUz4'
+                    }
+
+producer.produce_message(value=message_to_send)
+
+
+```
+
 
 
 

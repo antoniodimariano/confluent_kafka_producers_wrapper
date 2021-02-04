@@ -2,8 +2,13 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 import logging
-
 logger = logging.getLogger()
+default_headers = {"Content-Type": "application/json"}
+logging.basicConfig(
+    format='%(asctime)s.%(msecs)s:%(name)s:%(thread)d:%(levelname)s:%(process)d:%(message)s',
+    level=logging.INFO
+)
+logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.ERROR)
 
 
 class RestClient():

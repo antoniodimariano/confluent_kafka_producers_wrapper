@@ -6,6 +6,13 @@ import datetime
 from datetime import datetime, timezone
 import avro
 import json
+import logging
+logger = logging.getLogger()
+logging.basicConfig(
+    format='%(asctime)s:%(levelname)s:%(message)s',
+    level=logging.INFO
+)
+logger.setLevel(logging.INFO)
 from pathlib import Path
 
 
@@ -24,7 +31,8 @@ def build_producer_configuration(**kwargs):
             producer_conf['schema.registry.basic.auth.credentials.source'] = kwargs.get('basic_auth_credentials_source')
         if kwargs.get('basic_auth_user_info'):
             producer_conf['schema.registry.basic.auth.user.info'] = kwargs.get('basic_auth_user_info')
-
+        if kwargs['api_version_request'] is None:
+            kwargs['api_version_request'] = 1
         # removing what it's not needed as producers' config
         kwargs.pop('brokers_uri', '')
         kwargs.pop('service_name', '')
@@ -38,7 +46,8 @@ def build_producer_configuration(**kwargs):
                 producer_conf[entry.replace('_', '.')] = kwargs.get(entry)
         if 'ssl.ca.location' not in producer_conf:
             # here we are sure that the default certificate will be used
-            cacert_path = Path(__file__).parent / "../std_ssl_cert/cacert.pem"
+            pass
+            cacert_path = Path(__file__).parent / "std_ssl_cert/cacert.pem"
 
             producer_conf['ssl.ca.location'] = cacert_path
         elif 'ssl.ca.location' in producer_conf:
@@ -59,7 +68,7 @@ def build_producer_configuration(**kwargs):
 
         return producer_conf
     except Exception as error:
-        sys.stderr.write(' An EXCEPTION %s buiding the producer configuration' % error)
+        logger.error(' An EXCEPTION %s buiding the producer configuration' % error)
         return 0
 
 
@@ -104,7 +113,10 @@ def load_brokers_configuration_from_env_variables():
         'ssl_ca_location': os.environ.get('ssl_ca_location'),
         'ssl_certificate_location': os.environ.get('ssl_certificate_location'),
         'ssl_key_location': os.environ.get('ssl_key_location'),
-        'basic_auth_credentials_source': os.environ.get('basic_auth_credentials_source'),
+        'sasl_username': os.environ.get('sasl_username'),
+        'sasl_password': os.environ.get('sasl_password'),
+        'basic_auth_credentials_source': os.environ.get('schema_registry_basic_auth_credentials_source'),
+        'basic_auth_user_info':os.environ.get('schema_registry_basic_auth_user_info'),
         'sasl_mechanisms': os.environ.get('sasl_mechanisms'),
         'debug': os.environ.get('debug'),
         'api_version_request': os.environ.get('api_version_request')
@@ -134,8 +146,9 @@ class Producer:
             sys.stderr.write("Failed to deliver message: {}".format(err))
         else:
             now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-            sys.stderr.write("[" + now + "] Message produced to {} - partition:[{}] - offset:{} \n"
+            logger.info("Message produced to {} - partition:[{}] - offset:{} \n"
                              .format(msg.topic(), msg.partition(), msg.offset()))
+
 
     def produce_message_with_schema_registry(self, **kwargs):
         """
@@ -163,9 +176,7 @@ class Producer:
         elif type(value) is list:
             list_of_messages = kwargs.get('value', None)
         else:
-            now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-            sys.stderr.write(
-                '[' + now + '] Unknown type for the given value (not a dict not a list)\n')
+            logger.error('Unknown type for the given value (not a dict not a list')
             return 0
 
         key = kwargs.get('key', None)
@@ -173,19 +184,19 @@ class Producer:
             try:
                 self.producer.produce(topic=self.topic, value=value, key=key, callback=callback_function)
             except avro.io.AvroTypeException as error:
-                sys.stderr.write(" Avro ERROR: %s \n".format(error))
+                logger.error("Avro ERROR: %s \n"%error)
                 from confluent_kafka_producers_wrapper.helpers.files_operations import remove_topic_schema
                 remove_topic_schema(topic=self.topic, schema_registry=self.schema_registry)
                 return 0
             except BufferError as error:
-                sys.stderr.write("%% Buffer full error {} Producing records to the topic {} \n"
+                logger.error("%% Buffer full error {} Producing records to the topic {} \n"
                                  .format(error, self.topic))
                 self.producer.poll(10)
                 self.producer.produce(topic=self.topic, value=value, key=key, callback=callback_function)
             self.producer.poll(0)
         now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-        sys.stderr.write(
-            '[' + now + '] Waiting for delivering %d message(s) to %s \n' % (
+        logger.error(
+            ' Waiting for delivering %d message(s) to %s \n' % (
                 len(self.producer), self.topic))
         self.producer.flush()  # wait for any remaining delivery reports.
         return {"topic": self.topic, "sent": True}
@@ -219,13 +230,13 @@ class Producer:
             try:
                 self.producer.produce(self.topic, value=json.dumps(message), callback=self.delivery_callback)
             except BufferError as e:
-                sys.stderr.write('%% Local producer queue is full ' \
+                logger.error('%% Local producer queue is full ' \
                                  '(%d messages awaiting delivery): try again\n' %
                                  len(self.producer))
 
             self.producer.poll(0)
 
-        sys.stderr.write('%% Waiting for %d deliveries\n' % len(self.producer))
+        logger.info('%% Waiting for %d deliveries\n' % len(self.producer))
         self.producer.flush()
         return {"topic": self.topic, "sent": True}
 
