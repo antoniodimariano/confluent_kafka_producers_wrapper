@@ -1,11 +1,12 @@
 # Created by Antonio Di Mariano (antonio.dimariano@gmail.com) at 08/01/2021
 import json
 import avro
-import sys
 from confluent_kafka_producers_wrapper.helpers.files_operations import store_schema
 from confluent_kafka_producers_wrapper.helpers.files_operations import load_schema_from_file
 import logging
+
 logger = logging.getLogger()
+
 
 class SchemaRegistryDriver:
 
@@ -19,12 +20,12 @@ class SchemaRegistryDriver:
         """
         try:
             from confluent_kafka_producers_wrapper.communication.RESTClient import RestClient
-            return RestClient().make_REST_request(method='GET', service_url=avro_subject_to_query, headers=headers,
+            return RestClient().send_rest_request(method='GET', service_url=avro_subject_to_query, headers=headers,
                                                   auth=auth)
 
         except Exception as error:
-            sys.stderr.write("%% EXCEPTION %s occurred contacting the schema registry %s \n"
-                             % (error, avro_subject_to_query))
+            logger.error("EXCEPTION %s occurred contacting the schema registry %s"
+                         % (error, avro_subject_to_query))
             return 0
 
     def get_schema_versions_for_topic(self, topic, schema_registry, http_basic_auth=None):
@@ -46,11 +47,11 @@ class SchemaRegistryDriver:
             if list_of_available_versions:
                 return list_of_available_versions.get('response'), list_of_available_versions.get('response')[-1]
             else:
-                sys.stderr.write(
-                    '%% NO schema was found in the schema registry %s for topic %s \n' % (schema_registry, topic))
+                logger.debug(
+                    'NO schema was found in the schema registry %s for topic %s \n' % (schema_registry, topic))
                 return 0
         except Exception as error:
-            sys.stderr.write(
+            logger.error(
                 'EXCEPTION %s occurred contacting the schema registry %s to get versions for topic %s \n' % (
                     error, schema_registry, topic))
 
@@ -88,13 +89,13 @@ class SchemaRegistryDriver:
                     schema_as_json = json.loads(latest_schema_request.get('response').get("schema"))
                     return schema_as_json
                 else:
-                    sys.stderr.write(
+                    logger.error(
                         'An error occurred getting the schema version %d for the topic %s from the schema registry %s  \n' % (
                             latest_version, schema_registry, topic))
 
             return 0
         except Exception as error:
-            sys.stderr.write(
+            logger.error(
                 'EXCEPTION %s occurred getting the latest schema for topic %s from schema registry %s \n' % (
                     error, topic, schema_registry))
 
@@ -116,7 +117,7 @@ class SchemaRegistryDriver:
 
             stored_schema = load_schema_from_file(topic=topic, schema_registry=schema_registry)
             if stored_schema:
-                # a schema has been found stored in the local cache and it will used.
+                # schemas found stored in the local cache
                 logger.debug('Cached value/schema found for topic %s %s. \n' % (
                     topic, schema_registry))
 
@@ -124,7 +125,7 @@ class SchemaRegistryDriver:
                 key_schema = stored_schema.get('key')
 
             else:
-                # no schema is stored for the given topic and a query to the schema_registry will be sent.
+                # no schemas are stored for the given topic and a query to the schema_registry will be sent.
                 key_schema, value_schema = self.get_latest_schema_value_and_key_for_the_topic(basic_auth_user_info,
                                                                                               schema_registry,
                                                                                               topic)
@@ -132,7 +133,7 @@ class SchemaRegistryDriver:
                     logger.debug(
                         'value/key schema fetched for topic %s %s. \n' % (
                             topic, schema_registry))
-                    # the just received schema is going to be stored.
+                    # the just received schemas is going to be stored.
                     store_schema(topic=topic, key_schema=key_schema, value_schema=value_schema,
                                  schema_registry=schema_registry)
                 else:
@@ -143,8 +144,8 @@ class SchemaRegistryDriver:
             return key_schema, value_schema
         except Exception as error:
             logger.error(
-                'EXCEPTION occurred fetching the value/schema for topic %s %s. NO value and schema fetched/available \n' % (
-                    topic, schema_registry))
+                'EXCEPTION %s occurred fetching the value/schema for topic %s %s. NO value and schema fetched/available \n' % (
+                    error,topic, schema_registry))
             return 0
 
     def get_key_schema_and_value_schema(self, topic, schema_registry, basic_auth_user_info=None,

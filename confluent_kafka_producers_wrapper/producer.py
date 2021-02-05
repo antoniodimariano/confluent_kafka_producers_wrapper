@@ -9,8 +9,7 @@ import json
 import logging
 logger = logging.getLogger()
 logging.basicConfig(
-    format='%(asctime)s:%(levelname)s:%(message)s',
-    level=logging.INFO
+    format='%(asctime)s:%(levelname)s:%(message)s',level=logging.INFO
 )
 logger.setLevel(logging.INFO)
 from pathlib import Path
@@ -146,8 +145,7 @@ class Producer:
             sys.stderr.write("Failed to deliver message: {}".format(err))
         else:
             now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-            logger.info("Message produced to {} - partition:[{}] - offset:{} \n"
-                             .format(msg.topic(), msg.partition(), msg.offset()))
+            logger.info("Message produced to {} - partition:[{}] - offset:{}".format(msg.topic(), msg.partition(), msg.offset()))
 
 
     def produce_message_with_schema_registry(self, **kwargs):
@@ -194,9 +192,7 @@ class Producer:
                 self.producer.poll(10)
                 self.producer.produce(topic=self.topic, value=value, key=key, callback=callback_function)
             self.producer.poll(0)
-        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-        logger.error(
-            ' Waiting for delivering %d message(s) to %s \n' % (
+        logger.info(' Waiting for delivering %d message(s) to %s' % (
                 len(self.producer), self.topic))
         self.producer.flush()  # wait for any remaining delivery reports.
         return {"topic": self.topic, "sent": True}
