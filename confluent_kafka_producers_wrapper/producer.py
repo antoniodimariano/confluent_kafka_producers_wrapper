@@ -43,13 +43,8 @@ def build_producer_configuration(**kwargs):
         for entry in kwargs:
             if kwargs.get(entry):
                 producer_conf[entry.replace('_', '.')] = kwargs.get(entry)
-        if 'ssl.ca.location' not in producer_conf:
-            # here we are sure that the default certificate will be used
-            pass
-            cacert_path = Path(__file__).parent / "std_ssl_cert/cacert.pem"
 
-            producer_conf['ssl.ca.location'] = cacert_path
-        elif 'ssl.ca.location' in producer_conf:
+        if 'ssl.ca.location' in producer_conf:
             producer_conf['ssl.ca.location'] = os.path.abspath(producer_conf.get('ssl.ca.location'))
         if 'ssl.certificate.location' in producer_conf:
             producer_conf['ssl.certificate.location'] = os.path.abspath(producer_conf.get('ssl.certificate.location'))
