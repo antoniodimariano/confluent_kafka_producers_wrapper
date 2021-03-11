@@ -177,7 +177,7 @@ class Producer:
             try:
                 self.producer.produce(topic=self.topic, value=value, key=key, callback=callback_function)
             except avro.io.AvroTypeException as error:
-                logger.error("Avro ERROR: %s \n"%error)
+                logger.error("Avro ERROR: Topic:%s %s \n"%(self.topic,error))
                 from confluent_kafka_producers_wrapper.helpers.files_operations import remove_topic_schema
                 remove_topic_schema(topic=self.topic, schema_registry=self.schema_registry)
                 return 0
